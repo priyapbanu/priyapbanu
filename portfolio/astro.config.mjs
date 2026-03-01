@@ -7,6 +7,7 @@ import sitemap from '@astrojs/sitemap';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://priyapbanu.github.io',
+  base: '/priyapbanu',
   vite: {
     plugins: [tailwindcss()],
   },
