@@ -1,0 +1,180 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<Layout
+  title="AWS 3-Tier Architecture with Terraform | Banu Priya"
+  description="Production-ready AWS 3-tier web application architecture using Terraform — VPC, ALB, Auto Scaling Groups, RDS Multi-AZ, and CloudFront CDN."
+>
+  <Navbar />
+  <main style="padding-top:80px;min-height:100vh;">
+    <!-- Hero -->
+    <div style="padding:4rem 1.5rem 2rem;background:linear-gradient(180deg,rgba(15,22,41,0.9) 0%,transparent 100%);border-bottom:1px solid rgba(30,45,74,0.4);">
+      <div style="max-width:900px;margin:0 auto;">
+        <a href="/#projects" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;color:rgba(100,116,139,0.7);text-decoration:none;margin-bottom:1.5rem;transition:color 0.2s;" class="back-link">
+          ← Back to Projects
+        </a>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          {['AWS', 'Terraform', 'IaC', 'Production'].map(tag => (
+            <span style="display:inline-flex;padding:0.2rem 0.7rem;background:rgba(255,153,0,0.12);border:1px solid rgba(255,153,0,0.25);border-radius:4px;font-size:0.72rem;font-weight:700;color:#FF9900;text-transform:uppercase;letter-spacing:0.06em;">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 style="font-size:clamp(1.75rem,5vw,2.75rem);font-weight:900;color:white;letter-spacing:-0.03em;line-height:1.2;margin-bottom:0.75rem;">
+          AWS 3-Tier Architecture <span style="color:#FF9900;">with Terraform</span>
+        </h1>
+        <p style="color:rgba(148,163,184,0.85);font-size:1rem;line-height:1.65;margin-bottom:1.5rem;">
+          A production-ready, multi-AZ 3-tier web application infrastructure on AWS, fully managed as Terraform code.
+          Designed for high availability, scalability, and security.
+        </p>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <a href="https://github.com/priyapbanu/aws-3tier-terraform" target="_blank" rel="noopener noreferrer" class="btn-primary" style="font-size:0.85rem;padding:0.6rem 1.25rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:900px;margin:0 auto;padding:3rem 1.5rem 6rem;">
+      <!-- Architecture -->
+      <section style="margin-bottom:3rem;">
+        <h2 style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(30,45,74,0.5);">Architecture Overview</h2>
+        
+        <!-- ASCII arch diagram -->
+        <div style="background:#0d1117;border:1px solid rgba(30,45,74,0.8);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;overflow-x:auto;">
+          <pre style="color:#38bdf8;font-family:'JetBrains Mono',monospace;font-size:0.8rem;line-height:1.6;margin:0;white-space:pre;">{`
+Internet
+    │
+    ▼
+┌─────────────────────────────────────────┐
+│         CloudFront CDN (Global Edge)    │
+└─────────────────┬───────────────────────┘
+                  │
+    ┌─────────────▼─────────────┐
+    │   Application Load        │
+    │   Balancer (Multi-AZ)     │
+    └──────┬──────────┬─────────┘
+           │          │
+    ┌──────▼──┐  ┌────▼──────┐
+    │ Web Tier│  │ Web Tier  │   ← Auto Scaling Group
+    │  AZ-1a  │  │  AZ-1b    │   (EC2 / ECS)
+    └──────┬──┘  └────┬──────┘
+           │          │
+    ┌──────▼──────────▼──────┐
+    │   App Tier (Private)   │   ← Internal ALB
+    │   AZ-1a    │   AZ-1b   │   Auto Scaling Group
+    └──────┬──────────┬──────┘
+           │          │
+    ┌──────▼──────────▼──────┐
+    │   RDS PostgreSQL       │
+    │   Primary  │  Standby  │   ← Multi-AZ
+    └────────────────────────┘
+`}</pre>
+        </div>
+
+        <p style="color:rgba(148,163,184,0.85);line-height:1.7;font-size:0.95rem;">
+          This architecture implements a strict three-tier separation: <strong style="color:white;">presentation</strong> (web tier behind CloudFront + ALB),
+          <strong style="color:white;"> application logic</strong> (private subnet EC2/ECS with internal ALB), and
+          <strong style="color:white;"> data</strong> (RDS Multi-AZ in isolated subnets). All communication is encrypted in transit.
+        </p>
+      </section>
+
+      <!-- Tech Stack -->
+      <section style="margin-bottom:3rem;">
+        <h2 style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(30,45,74,0.5);">Tech Stack</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;">
+          {[
+            { name: 'AWS VPC', desc: 'Networking layer' },
+            { name: 'CloudFront', desc: 'CDN & edge caching' },
+            { name: 'Application LB', desc: 'Layer 7 load balancing' },
+            { name: 'EC2 Auto Scaling', desc: 'Dynamic compute' },
+            { name: 'RDS PostgreSQL', desc: 'Managed database' },
+            { name: 'ElastiCache Redis', desc: 'Session & cache' },
+            { name: 'S3', desc: 'Static assets & backups' },
+            { name: 'Terraform', desc: 'Infrastructure as Code' },
+            { name: 'ACM', desc: 'TLS certificates' },
+            { name: 'WAF', desc: 'Web application firewall' },
+          ].map(item => (
+            <div style="padding:0.75rem 1rem;background:rgba(21,29,53,0.8);border:1px solid rgba(30,45,74,0.6);border-radius:8px;">
+              <p style="font-size:0.85rem;font-weight:700;color:white;margin-bottom:0.2rem;">{item.name}</p>
+              <p style="font-size:0.75rem;color:rgba(100,116,139,0.7);">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Folder Structure -->
+      <section style="margin-bottom:3rem;">
+        <h2 style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(30,45,74,0.5);">Folder Structure</h2>
+        <div style="background:#0d1117;border:1px solid rgba(30,45,74,0.8);border-radius:12px;padding:1.5rem;overflow-x:auto;">
+          <pre style="color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:0.82rem;line-height:1.7;margin:0;">{`aws-3tier-terraform/
+├── main.tf                    # Root module
+├── variables.tf               # Input variables
+├── outputs.tf                 # Output values
+├── versions.tf                # Provider versions
+├── terraform.tfvars.example   # Example var file
+├── modules/
+│   ├── networking/
+│   │   ├── main.tf            # VPC, subnets, IGW, NAT GW
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── security/
+│   │   ├── main.tf            # Security groups, WAF, NACLs
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── compute/
+│   │   ├── main.tf            # Launch templates, ASGs
+│   │   ├── alb.tf             # Application Load Balancers
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── database/
+│   │   ├── main.tf            # RDS, ElastiCache, subnet groups
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── cdn/
+│       ├── main.tf            # CloudFront distribution
+│       ├── variables.tf
+│       └── outputs.tf
+└── environments/
+    ├── dev/terraform.tfvars
+    ├── staging/terraform.tfvars
+    └── production/terraform.tfvars`}</pre>
+        </div>
+      </section>
+
+      <!-- Key Features -->
+      <section style="margin-bottom:3rem;">
+        <h2 style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(30,45,74,0.5);">Key Features</h2>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          {[
+            '✅ Multi-AZ deployment for 99.99% availability SLA',
+            '✅ Auto Scaling with predictive scaling policies',
+            '✅ RDS Multi-AZ with automated failover (<60s)',
+            '✅ CloudFront with edge caching & origin shield',
+            '✅ WAF with managed rule groups (OWASP Top 10)',
+            '✅ End-to-end TLS encryption via ACM',
+            '✅ VPC Flow Logs + CloudTrail for auditing',
+            '✅ Cost optimization with Savings Plans integration',
+          ].map(feat => (
+            <div style="padding:0.75rem 1rem;background:rgba(21,29,53,0.5);border:1px solid rgba(30,45,74,0.4);border-radius:8px;font-size:0.875rem;color:rgba(148,163,184,0.85);">
+              {feat}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <a href="https://github.com/priyapbanu/aws-3tier-terraform" target="_blank" rel="noopener noreferrer" class="btn-primary">
+        View Full Source on GitHub →
+      </a>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .back-link:hover { color: #38bdf8 !important; }
+</style>

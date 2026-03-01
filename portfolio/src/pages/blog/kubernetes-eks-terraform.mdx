@@ -1,0 +1,283 @@
+---
+layout: '../../layouts/BlogLayout.astro'
+title: 'Building a Production Kubernetes Cluster on AWS EKS with Terraform'
+description: 'A comprehensive guide to deploying a production-ready Kubernetes cluster on AWS EKS using Terraform — including node groups, RBAC, autoscaling, Ingress, cert-manager, and GitOps.'
+pubDate: '2024-02-15'
+tags: ['Kubernetes', 'AWS', 'Terraform', 'EKS', 'DevOps']
+readTime: '12 min read'
+author: 'Banu Priya'
+---
+
+## Introduction
+
+Setting up a production-grade Kubernetes cluster is far more than just running `eksctl create cluster`. You need robust networking, proper RBAC, autoscaling, Ingress management, TLS certificates, and a GitOps deployment strategy.
+
+In this guide, I'll walk you through the **complete setup** of an AWS EKS cluster using Terraform, following production best practices that I've applied across multiple real-world deployments.
+
+## Prerequisites
+
+Before we start, ensure you have:
+
+- **AWS CLI** configured with appropriate permissions
+- **Terraform** ≥ 1.5.0
+- **kubectl** ≥ 1.28
+- **Helm** ≥ 3.12
+
+## Architecture Overview
+
+Our cluster will include:
+
+- **EKS Managed Node Groups** (on-demand + spot instances)
+- **VPC with private subnets** for worker nodes
+- **Cluster Autoscaler** for dynamic scaling
+- **AWS Load Balancer Controller** for Ingress
+- **cert-manager** for TLS certificates
+- **ArgoCD** for GitOps deployments
+- **Prometheus + Grafana** for observability
+
+## Project Structure
+
+```
+eks-terraform/
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── versions.tf
+├── modules/
+│   ├── vpc/
+│   │   ├── main.tf
+│   │   └── variables.tf
+│   ├── eks/
+│   │   ├── main.tf
+│   │   ├── node-groups.tf
+│   │   └── variables.tf
+│   └── addons/
+│       ├── cluster-autoscaler.tf
+│       ├── alb-controller.tf
+│       └── cert-manager.tf
+└── helm/
+    ├── argocd-values.yaml
+    └── prometheus-values.yaml
+```
+
+## Step 1: VPC Configuration
+
+First, let's set up a VPC optimized for EKS:
+
+```hcl
+# modules/vpc/main.tf
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "${var.cluster_name}-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = false
+  one_nat_gateway_per_az = true
+
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  # Required tags for EKS
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+
+  tags = var.tags
+}
+```
+
+> **Pro Tip**: Always use one NAT Gateway per AZ in production to avoid cross-AZ data transfer costs and improve resilience.
+
+## Step 2: EKS Cluster Setup
+
+```hcl
+# modules/eks/main.tf
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.0"
+
+  cluster_name    = var.cluster_name
+  cluster_version = "1.29"
+
+  vpc_id                         = var.vpc_id
+  subnet_ids                     = var.private_subnet_ids
+  cluster_endpoint_public_access = true
+
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent    = true
+      before_compute = true
+    }
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = module.ebs_csi_irsa_role.iam_role_arn
+    }
+  }
+
+  # Managed Node Groups
+  eks_managed_node_groups = {
+    # On-demand nodes for critical workloads
+    general = {
+      name           = "general-nodes"
+      instance_types = ["m6i.large", "m5.large"]
+      capacity_type  = "ON_DEMAND"
+      min_size       = 2
+      max_size       = 10
+      desired_size   = 3
+
+      labels = {
+        workload = "general"
+      }
+    }
+
+    # Spot nodes for non-critical workloads
+    spot = {
+      name           = "spot-nodes"
+      instance_types = ["m6i.large", "m5.large", "m5a.large"]
+      capacity_type  = "SPOT"
+      min_size       = 0
+      max_size       = 20
+      desired_size   = 2
+
+      labels = {
+        workload      = "spot"
+        "node-type"   = "spot"
+      }
+
+      taints = [{
+        key    = "spot"
+        value  = "true"
+        effect = "NO_SCHEDULE"
+      }]
+    }
+  }
+
+  tags = var.tags
+}
+```
+
+## Step 3: Configure RBAC
+
+Proper RBAC is critical for cluster security:
+
+```yaml
+# rbac/dev-team-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: development
+  name: developer-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "services", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-rolebinding
+  namespace: development
+subjects:
+- kind: Group
+  name: "dev-team"
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: developer-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+## Step 4: Install Cluster Autoscaler
+
+```hcl
+# modules/addons/cluster-autoscaler.tf
+resource "helm_release" "cluster_autoscaler" {
+  name       = "cluster-autoscaler"
+  repository = "https://kubernetes.github.io/autoscaler"
+  chart      = "cluster-autoscaler"
+  namespace  = "kube-system"
+  version    = "9.35.0"
+
+  set {
+    name  = "autoDiscovery.clusterName"
+    value = var.cluster_name
+  }
+
+  set {
+    name  = "awsRegion"
+    value = var.aws_region
+  }
+
+  set {
+    name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.cluster_autoscaler_irsa_role.iam_role_arn
+  }
+}
+```
+
+## Step 5: Deploy & Verify
+
+```bash
+# Initialize and apply Terraform
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+
+# Update kubeconfig
+aws eks update-kubeconfig \
+  --region us-east-1 \
+  --name production-cluster
+
+# Verify nodes
+kubectl get nodes -o wide
+
+# Check system pods
+kubectl get pods -n kube-system
+
+# Verify autoscaler is running
+kubectl logs -n kube-system \
+  deployment/cluster-autoscaler | tail -20
+```
+
+## Production Checklist
+
+Before going live, verify:
+
+- ✅ Node groups span multiple AZs
+- ✅ Control plane logs enabled (API, authenticator, scheduler)
+- ✅ Cluster encryption enabled with KMS
+- ✅ Pod Security Standards configured
+- ✅ Network policies applied to all namespaces
+- ✅ Resource requests/limits set on all workloads
+- ✅ PodDisruptionBudgets configured for critical apps
+- ✅ Monitoring and alerting configured
+
+## Conclusion
+
+This setup gives you a solid foundation for running Kubernetes in production. The key takeaways are:
+1. **Always use Terraform** for reproducibility
+2. **Mix on-demand and spot** to balance cost and reliability
+3. **IRSA over node IAM roles** for pod-level permissions
+4. **GitOps from day one** reduces configuration drift
+
+Full source code is available on [GitHub](https://github.com/priyapbanu/k8s-production-cluster).

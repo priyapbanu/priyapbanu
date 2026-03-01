@@ -1,0 +1,65 @@
+---
+import Layout from './Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+const { frontmatter } = Astro.props;
+const { title, description, pubDate, tags = [], readTime = '5 min read', author = 'Banu Priya' } = frontmatter;
+const formattedDate = new Date(pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<Layout title={`${title} | Banu Priya Blog`} description={description} type="article">
+  <Navbar />
+  <main style="padding-top:80px;">
+    <!-- Hero -->
+    <div style="padding:4rem 1.5rem 2rem;background:linear-gradient(180deg, rgba(15,22,41,0.8) 0%, transparent 100%);border-bottom:1px solid rgba(30,45,74,0.4);">
+      <div style="max-width:800px;margin:0 auto;">
+        <!-- Tags -->
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          {tags.map((tag: string) => (
+            <span style="display:inline-flex;padding:0.2rem 0.7rem;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.25);border-radius:4px;font-size:0.72rem;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:0.06em;">
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <h1 style="font-size:clamp(1.75rem,5vw,2.75rem);font-weight:900;color:white;letter-spacing:-0.03em;line-height:1.2;margin-bottom:1rem;">{title}</h1>
+        <p style="color:rgba(148,163,184,0.85);font-size:1.05rem;line-height:1.65;margin-bottom:1.5rem;">{description}</p>
+
+        <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
+          <!-- Author -->
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#38bdf8,#818cf8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;color:#0a0e1a;font-size:0.75rem;">BP</div>
+            <span style="font-size:0.875rem;font-weight:600;color:rgba(226,232,240,0.8);">{author}</span>
+          </div>
+          <span style="color:rgba(100,116,139,0.4);">|</span>
+          <time style="font-size:0.82rem;color:rgba(100,116,139,0.7);font-family:'JetBrains Mono',monospace;">{formattedDate}</time>
+          <span style="color:rgba(100,116,139,0.4);">|</span>
+          <span style="font-size:0.82rem;color:rgba(100,116,139,0.7);">⏱ {readTime}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="max-width:800px;margin:0 auto;padding:3rem 1.5rem 6rem;">
+      <!-- Back link -->
+      <a href="/blog" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;font-weight:600;color:rgba(100,116,139,0.7);text-decoration:none;margin-bottom:2rem;transition:color 0.2s;" class="back-link">
+        ← Back to Blog
+      </a>
+
+      <article class="prose-devops">
+        <slot />
+      </article>
+
+      <!-- Back link bottom -->
+      <div style="margin-top:4rem;padding-top:2rem;border-top:1px solid rgba(30,45,74,0.4);">
+        <a href="/blog" class="btn-secondary">← Back to All Articles</a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .back-link:hover { color: #818cf8 !important; }
+</style>

@@ -1,0 +1,247 @@
+---
+layout: '../../layouts/BlogLayout.astro'
+title: 'Zero-Downtime Deployments with GitLab CI/CD Blue-Green Strategy'
+description: 'Implement a production-grade blue-green deployment pipeline with GitLab CI, Docker, and Kubernetes — achieving zero-downtime releases with instant rollback capability.'
+pubDate: '2024-01-20'
+tags: ['CI/CD', 'GitLab', 'Docker', 'Kubernetes']
+readTime: '9 min read'
+author: 'Banu Priya'
+---
+
+## Why Blue-Green Deployments?
+
+Traditional rolling deployments can cause brief downtime during releases. **Blue-green deployments** eliminate this by maintaining two identical production environments — one active (blue), one standby (green). You deploy to green, test it, then switch traffic instantly.
+
+Benefits:
+- **Zero downtime** during deployments
+- **Instant rollback** — just switch traffic back to blue
+- **Full production testing** before user traffic hits
+
+## The Pipeline Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  GitLab CI Pipeline                  │
+├──────────┬──────────┬───────────┬───────────────────┤
+│  Build   │   Test   │  Scan     │  Deploy           │
+│          │          │  (SAST)   │  (Blue-Green)     │
+│  Docker  │  Unit    │  Trivy    │  K8s Switch       │
+│  Build   │  Tests   │  Scan     │  Traffic          │
+└──────────┴──────────┴───────────┴───────────────────┘
+```
+
+## GitLab CI Configuration
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - build
+  - test
+  - security
+  - deploy-green
+  - smoke-test
+  - switch-traffic
+  - cleanup
+
+variables:
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  K8S_NAMESPACE: production
+
+.deploy-template: &deploy-template
+  image: bitnami/kubectl:latest
+  before_script:
+    - kubectl config set-cluster "$KUBE_URL"
+    - kubectl config set-credentials admin --token="$KUBE_TOKEN"
+
+# Stage 1: Build Docker image
+build-image:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - |
+      docker build \
+        --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+        --build-arg GIT_COMMIT=$CI_COMMIT_SHA \
+        -t $DOCKER_IMAGE .
+    - docker push $DOCKER_IMAGE
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# Stage 2: Unit tests
+unit-tests:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install -r requirements-test.txt
+    - pytest tests/ -v --junitxml=report.xml --cov=src --cov-report=xml
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+# Stage 3: Security scanning
+container-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $DOCKER_IMAGE
+  allow_failure: false
+
+# Stage 4: Deploy to Green
+deploy-green:
+  stage: deploy-green
+  <<: *deploy-template
+  script:
+    - |
+      # Determine current active slot
+      CURRENT=$(kubectl get service app-service -n $K8S_NAMESPACE \
+        -o jsonpath='{.spec.selector.slot}' 2>/dev/null || echo "blue")
+      
+      if [ "$CURRENT" = "blue" ]; then
+        DEPLOY_SLOT="green"
+      else
+        DEPLOY_SLOT="blue"
+      fi
+      
+      echo "Deploying to slot: $DEPLOY_SLOT"
+      
+      # Deploy to standby slot
+      kubectl set image deployment/app-$DEPLOY_SLOT \
+        app=$DOCKER_IMAGE \
+        -n $K8S_NAMESPACE
+      
+      # Wait for rollout
+      kubectl rollout status deployment/app-$DEPLOY_SLOT \
+        -n $K8S_NAMESPACE --timeout=5m
+      
+      # Store slot for next stages
+      echo "DEPLOY_SLOT=$DEPLOY_SLOT" > deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env
+
+# Stage 5: Smoke tests against green
+smoke-test:
+  stage: smoke-test
+  image: curlimages/curl:latest
+  needs: ["deploy-green"]
+  script:
+    - |
+      GREEN_URL="http://app-${DEPLOY_SLOT}-svc.${K8S_NAMESPACE}.svc.cluster.local"
+      
+      # Health check
+      curl --fail --max-time 10 "$GREEN_URL/health"
+      
+      # API smoke tests
+      curl --fail "$GREEN_URL/api/v1/status" | grep '"status":"ok"'
+      
+      echo "✅ Smoke tests passed!"
+
+# Stage 6: Switch traffic
+switch-traffic:
+  stage: switch-traffic
+  <<: *deploy-template
+  needs: ["smoke-test"]
+  environment:
+    name: production
+    url: https://app.example.com
+  script:
+    - |
+      kubectl patch service app-service -n $K8S_NAMESPACE \
+        -p "{\"spec\":{\"selector\":{\"slot\":\"$DEPLOY_SLOT\"}}}"
+      echo "✅ Traffic switched to $DEPLOY_SLOT"
+  when: manual
+  allow_failure: false
+
+# Stage 7: Cleanup old slot
+cleanup-old-slot:
+  stage: cleanup
+  <<: *deploy-template
+  needs: ["switch-traffic"]
+  script:
+    - |
+      if [ "$DEPLOY_SLOT" = "green" ]; then
+        OLD_SLOT="blue"
+      else
+        OLD_SLOT="green"
+      fi
+      kubectl scale deployment/app-$OLD_SLOT --replicas=0 -n $K8S_NAMESPACE
+      echo "✅ Scaled down old slot: $OLD_SLOT"
+```
+
+## Kubernetes Resources
+
+```yaml
+# k8s/deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: myapp
+        slot: blue
+    spec:
+      containers:
+      - name: app
+        image: registry.gitlab.com/org/app:latest
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: production
+spec:
+  selector:
+    app: myapp
+    slot: blue  # This gets patched during deployment
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+## Rollback in 10 Seconds
+
+```bash
+# Instant rollback — switch back to the previous slot
+kubectl patch service app-service -n production \
+  -p '{"spec":{"selector":{"slot":"blue"}}}'
+```
+
+## Key Takeaways
+
+1. **Traffic switching is instantaneous** via Service selector patch
+2. **The old slot stays warm** until explicitly scaled down
+3. **Manual gate** before switching traffic prevents accidental promotions
+4. **Trivy scanning** blocks deployments with critical vulnerabilities
+
+This pattern has served me well across multiple production systems with millions of daily users. The ~30-second rollback capability is a game-changer for on-call engineers.

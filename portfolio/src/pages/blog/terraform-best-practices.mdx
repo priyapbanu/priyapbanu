@@ -1,0 +1,169 @@
+---
+layout: '../../layouts/BlogLayout.astro'
+title: 'Terraform Best Practices: Managing AWS Infrastructure at Scale'
+description: 'Learn production-proven Terraform patterns for managing complex AWS infrastructure — including remote state, workspaces, modules, and CI/CD integration.'
+pubDate: '2024-03-01'
+tags: ['Terraform', 'AWS', 'IaC', 'DevOps']
+readTime: '8 min read'
+author: 'Banu Priya'
+---
+
+## The Challenge of Scale
+
+When Terraform grows from a handful of resources to hundreds of them across multiple environments, you need a disciplined approach. I've seen teams grind to a halt because their Terraform state was a monolith, had no module reuse, and ran locally on developer laptops.
+
+Here's how to avoid those pitfalls.
+
+## 1. Remote State with Locking
+
+Never use local state in production. Use S3 + DynamoDB:
+
+```hcl
+# backend.tf
+terraform {
+  backend "s3" {
+    bucket         = "my-terraform-state-prod"
+    key            = "infrastructure/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    kms_key_id     = "arn:aws:kms:us-east-1:123456789:key/abc-123"
+    dynamodb_table = "terraform-state-lock"
+  }
+}
+```
+
+Bootstrap the S3 bucket itself with Terraform (with local state initially), then migrate.
+
+## 2. Environment Workspaces vs. Directories
+
+For small teams, **workspaces** work:
+
+```bash
+terraform workspace new staging
+terraform workspace new production
+terraform workspace select staging
+terraform apply -var-file="staging.tfvars"
+```
+
+For large teams, **separate directories** per environment are safer:
+
+```
+infrastructure/
+├── modules/          # Reusable modules
+│   ├── eks/
+│   ├── rds/
+│   └── vpc/
+├── environments/
+│   ├── dev/
+│   │   ├── main.tf
+│   │   └── terraform.tfvars
+│   ├── staging/
+│   └── production/
+└── global/           # IAM, Route53, etc.
+```
+
+## 3. Module Design Principles
+
+Good modules are:
+
+```hcl
+# modules/rds/main.tf
+variable "identifier" { type = string }
+variable "engine_version" { type = string; default = "15.4" }
+variable "instance_class" { type = string }
+variable "multi_az" { type = bool; default = true }
+
+resource "aws_db_instance" "this" {
+  identifier           = var.identifier
+  engine               = "postgres"
+  engine_version       = var.engine_version
+  instance_class       = var.instance_class
+  allocated_storage    = 100
+  storage_encrypted    = true  # Always encrypt!
+  multi_az             = var.multi_az
+  deletion_protection  = true  # Prevent accidental deletion
+  
+  backup_retention_period = 7
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "Mon:04:00-Mon:05:00"
+  
+  # Output everything callers might need
+}
+
+output "endpoint" { value = aws_db_instance.this.endpoint }
+output "arn" { value = aws_db_instance.this.arn }
+```
+
+## 4. CI/CD Integration with GitLab
+
+```yaml
+# .gitlab-ci.yml for Terraform
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/environments/production
+  TF_VERSION: "1.7.0"
+
+image: hashicorp/terraform:${TF_VERSION}
+
+before_script:
+  - cd ${TF_ROOT}
+  - terraform init -backend-config="bucket=${TF_STATE_BUCKET}"
+
+tf-validate:
+  stage: validate
+  script:
+    - terraform validate
+    - terraform fmt -check -recursive
+
+tf-plan:
+  stage: plan
+  script:
+    - terraform plan -out=tfplan -var-file=production.tfvars
+  artifacts:
+    paths: [tfplan]
+    expire_in: 1 hour
+
+tf-apply:
+  stage: apply
+  script:
+    - terraform apply tfplan
+  when: manual
+  environment:
+    name: production
+```
+
+## 5. Preventing Config Drift
+
+Use **drift detection** on a schedule:
+
+```bash
+#!/bin/bash
+# detect-drift.sh
+terraform plan -detailed-exitcode -var-file=production.tfvars
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 2 ]; then
+  echo "⚠️  DRIFT DETECTED! Changes exist outside Terraform."
+  # Send alert to Slack/PagerDuty
+  curl -X POST "$SLACK_WEBHOOK" \
+    -d '{"text": "🚨 Terraform drift detected in production!"}'
+fi
+```
+
+Schedule this with AWS EventBridge + Lambda or a GitLab CI scheduled pipeline.
+
+## Key Rules to Live By
+
+> **Never run `terraform apply` from your laptop in production.** Always use CI/CD with reviewed plans.
+
+1. **Pin provider versions** — `~>` for minor versions, exact for patch
+2. **Use `prevent_destroy = true`** on stateful resources
+3. **Tag everything** — use a standard tagging module
+4. **Run `terraform fmt` in pre-commit hooks**
+5. **Review plans carefully** — `~` is modify, `-` is destroy!
+
+Terraform discipline pays dividends at 3am when something breaks. Make it boring and predictable.

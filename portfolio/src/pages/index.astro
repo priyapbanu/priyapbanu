@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import About from '../components/About.astro';
+import Skills from '../components/Skills.astro';
+import Projects from '../components/Projects.astro';
+import Blog from '../components/Blog.astro';
+import YouTube from '../components/YouTube.astro';
+import Contact from '../components/Contact.astro';
+import Footer from '../components/Footer.astro';
+
+// Fetch blog posts for the blog section preview
+const postModules = import.meta.glob('./blog/*.{md,mdx}', { eager: true });
+const allPosts = Object.entries(postModules).map(([path, mod]: [string, any]) => ({
+  slug: path.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '',
+  data: mod.frontmatter,
+}));
+const posts = allPosts
+  .sort((a, b) => new Date(b.data.pubDate).valueOf() - new Date(a.data.pubDate).valueOf())
+  .slice(0, 3);
+---
+
+<Layout
+  title="Banu Priya | DevOps Engineer | AWS · Kubernetes · Terraform"
+  description="DevOps Engineer specializing in AWS, Kubernetes, Terraform, and CI/CD automation. Building scalable cloud infrastructure with GitLab CI, Prometheus, and ELK Stack."
+>
+  <Navbar />
+  <main>
+    <Hero />
+    <About />
+    <Skills />
+    <Projects />
+    <!-- <Blog posts={posts} />
+    <YouTube /> -->
+    <Contact />
+  </main>
+  <Footer />
+</Layout>

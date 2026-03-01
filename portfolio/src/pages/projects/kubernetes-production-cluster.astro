@@ -1,0 +1,119 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<Layout
+  title="Kubernetes Production Cluster Setup | Banu Priya"
+  description="Enterprise Kubernetes production cluster on AWS EKS with Terraform, RBAC, Cluster Autoscaler, Ingress, cert-manager, and ArgoCD GitOps."
+>
+  <Navbar />
+  <main style="padding-top:80px;min-height:100vh;">
+    <div style="padding:4rem 1.5rem 2rem;background:linear-gradient(180deg,rgba(15,22,41,0.9) 0%,transparent 100%);border-bottom:1px solid rgba(30,45,74,0.4);">
+      <div style="max-width:900px;margin:0 auto;">
+        <a href="/#projects" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;color:rgba(100,116,139,0.7);text-decoration:none;margin-bottom:1.5rem;" class="back-link">← Back to Projects</a>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          {['Kubernetes', 'EKS', 'GitOps', 'Terraform'].map(tag => (
+            <span style="display:inline-flex;padding:0.2rem 0.7rem;background:rgba(50,108,229,0.12);border:1px solid rgba(50,108,229,0.25);border-radius:4px;font-size:0.72rem;font-weight:700;color:#326CE5;text-transform:uppercase;letter-spacing:0.06em;">{tag}</span>
+          ))}
+        </div>
+        <h1 style="font-size:clamp(1.75rem,5vw,2.75rem);font-weight:900;color:white;letter-spacing:-0.03em;line-height:1.2;margin-bottom:0.75rem;">Kubernetes <span style="color:#326CE5;">Production Cluster</span></h1>
+        <p style="color:rgba(148,163,184,0.85);font-size:1rem;line-height:1.65;margin-bottom:1.5rem;">Enterprise-grade Kubernetes cluster on AWS EKS — production-ready from day one with GitOps, autoscaling, observability, and security hardening.</p>
+        <a href="https://github.com/priyapbanu/k8s-production-cluster" target="_blank" rel="noopener noreferrer" class="btn-primary" style="font-size:0.85rem;padding:0.6rem 1.25rem;">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <div style="max-width:900px;margin:0 auto;padding:3rem 1.5rem 6rem;" class="prose-devops">
+      <h2>Architecture</h2>
+      <div style="background:#0d1117;border:1px solid rgba(30,45,74,0.8);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;overflow-x:auto;">
+        <pre style="color:#38bdf8;font-family:'JetBrains Mono',monospace;font-size:0.78rem;line-height:1.6;margin:0;">{`
+┌─────────────────────────────────────────────────────────┐
+│                    AWS EKS Cluster                       │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │              Control Plane (AWS Managed)         │   │
+│  │         API Server | etcd | Scheduler            │   │
+│  └────────────────────┬────────────────────────────┘   │
+│                       │                                  │
+│         ┌─────────────┼────────────────┐                │
+│         │             │                │                │
+│  ┌──────▼───┐  ┌──────▼───┐  ┌────────▼──┐            │
+│  │On-Demand │  │  Spot    │  │  GPU      │            │
+│  │Node Grp  │  │ Node Grp │  │ Node Grp  │            │
+│  │ (m6i.lg) │  │(Mixed)   │  │ (g4dn)    │            │
+│  └──────────┘  └──────────┘  └───────────┘            │
+│                                                          │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │               Cluster Add-ons                    │   │
+│  │  CoreDNS | VPC CNI | EBS CSI | Kube Proxy        │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                          │
+│  ArgoCD (GitOps) → Prometheus → Grafana → AlertManager  │
+└─────────────────────────────────────────────────────────┘
+`}</pre>
+      </div>
+
+      <h2>Tech Stack</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.75rem;margin-bottom:2rem;">
+        {['AWS EKS 1.29','Terraform ~>5','Helm 3','ArgoCD','Cluster Autoscaler','AWS LBC','cert-manager','Prometheus','Grafana','ExternalDNS','Falco (Security)','Kyverno (Policy)'].map(item => (
+          <div style="padding:0.6rem 0.85rem;background:rgba(21,29,53,0.8);border:1px solid rgba(50,108,229,0.2);border-radius:8px;font-size:0.82rem;font-weight:600;color:rgba(226,232,240,0.85);">{item}</div>
+        ))}
+      </div>
+
+      <h2>Folder Structure</h2>
+      <div style="background:#0d1117;border:1px solid rgba(30,45,74,0.8);border-radius:12px;padding:1.5rem;margin-bottom:2rem;overflow-x:auto;">
+        <pre style="color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:0.8rem;line-height:1.7;margin:0;">{`k8s-production-cluster/
+├── terraform/
+│   ├── eks-cluster/
+│   │   ├── main.tf            # EKS cluster & node groups
+│   │   ├── irsa.tf            # IAM roles for service accounts
+│   │   ├── addons.tf          # EKS managed addons
+│   │   └── security-groups.tf
+│   └── helm-releases/
+│       ├── argocd.tf
+│       ├── ingress-nginx.tf
+│       ├── cert-manager.tf
+│       └── prometheus-stack.tf
+├── kubernetes/
+│   ├── namespaces/
+│   ├── rbac/
+│   │   ├── dev-team-role.yaml
+│   │   └── ops-team-role.yaml
+│   ├── network-policies/
+│   ├── pod-security/
+│   └── resource-quotas/
+├── argocd/
+│   ├── projects/
+│   └── applications/
+└── monitoring/
+    ├── grafana-dashboards/
+    └── alert-rules/`}</pre>
+      </div>
+
+      <h2>Key Features</h2>
+      <ul style="list-style:none;padding:0;">
+        {[
+          '⚓ EKS with managed node groups across 3 AZs',
+          '🔄 Cluster Autoscaler with Spot + On-demand mixed',
+          '🔐 IRSA for fine-grained pod-level AWS permissions',
+          '🌐 AWS Load Balancer Controller for Ingress management',
+          '🔒 cert-manager with Let\'s Encrypt for automatic TLS',
+          '🚀 ArgoCD for GitOps continuous deployment',
+          '📊 kube-prometheus-stack with custom dashboards',
+          '🛡️ Kyverno policy engine for admission control',
+          '🔍 Falco runtime security monitoring',
+        ].map(f => (
+          <li style="padding:0.6rem 1rem;margin-bottom:0.5rem;background:rgba(21,29,53,0.5);border:1px solid rgba(50,108,229,0.15);border-radius:8px;font-size:0.875rem;color:rgba(148,163,184,0.85);">{f}</li>
+        ))}
+      </ul>
+
+      <div style="margin-top:2.5rem;">
+        <a href="https://github.com/priyapbanu/k8s-production-cluster" target="_blank" rel="noopener noreferrer" class="btn-primary">View Full Source on GitHub →</a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+<style>.back-link:hover { color: #326CE5 !important; }</style>

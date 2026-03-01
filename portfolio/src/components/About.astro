@@ -1,0 +1,88 @@
+---
+const highlights = [
+  { icon: '☁️', label: 'Cloud Platforms', value: 'AWS & GCP' },
+  { icon: '🚀', label: 'CI/CD Pipelines', value: 'GitLab CI' },
+  { icon: '🏗️', label: 'Infrastructure as Code', value: 'Terraform' },
+  { icon: '📊', label: 'Monitoring', value: 'Prometheus & ELK' },
+];
+---
+
+<section id="about" style="padding:6rem 1.5rem;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <!-- Section header -->
+    <div class="reveal" style="margin-bottom:3rem;">
+      <p style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.12em;color:#38bdf8;font-weight:700;margin-bottom:0.5rem;">// About Me</p>
+      <h2 class="section-title" style="color:white;">
+        Passionate about <span class="gradient-text">DevOps</span>
+      </h2>
+      <div class="glow-divider" style="max-width:100px;margin:1rem 0;"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;" class="about-grid">
+      <!-- Text content -->
+      <div class="reveal">
+        <p style="color:rgba(148,163,184,0.9);line-height:1.8;font-size:1rem;margin-bottom:1.25rem;">
+          I'm a DevOps Engineer with deep expertise in cloud platforms, container orchestration, and infrastructure automation. 
+          I specialize in designing and implementing <strong style="color:white;">AWS & GCP</strong> cloud architectures that are scalable, 
+          secure, and cost-efficient, enabling engineering teams to ship faster with confidence.
+        </p>
+        <p style="color:rgba(148,163,184,0.9);line-height:1.8;font-size:1rem;margin-bottom:1.25rem;">
+          My proficiency in <strong style="color:white;">Kubernetes & Docker</strong> allows me to build and manage production-grade container 
+          platforms, while <strong style="color:white;">Terraform</strong> empowers me to codify entire infrastructure deployments — from 
+          VPC networking to multi-region EKS clusters — treating infrastructure with the same discipline as application code.
+        </p>
+        <p style="color:rgba(148,163,184,0.9);line-height:1.8;font-size:1rem;">
+          I drive reliability through robust observability stacks using <strong style="color:white;">Prometheus, Grafana, and the ELK Stack</strong>, 
+          and accelerate delivery via <strong style="color:white;">GitLab CI/CD</strong> pipelines. I automate everything possible using 
+          <strong style="color:white;">Python & Bash</strong>, believing that manual toil is the enemy of scale.
+        </p>
+
+        <!-- Facts row -->
+        <div style="display:flex;gap:2rem;margin-top:2rem;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:2rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">4+</div>
+            <div style="font-size:0.82rem;color:rgba(100,116,139,0.9);">Years Experience</div>
+          </div>
+          <div>
+            <div style="font-size:2rem;font-weight:900;background:linear-gradient(135deg,#818cf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">20+</div>
+            <div style="font-size:0.82rem;color:rgba(100,116,139,0.9);">Projects Delivered</div>
+          </div>
+          <div>
+            <div style="font-size:2rem;font-weight:900;background:linear-gradient(135deg,#34d399,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">99.9%</div>
+            <div style="font-size:0.82rem;color:rgba(100,116,139,0.9);">Uptime SLA</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Highlights grid -->
+      <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        {highlights.map(h => (
+          <div class="glass-card" style="padding:1.5rem;">
+            <div style="font-size:1.75rem;margin-bottom:0.75rem;">{h.icon}</div>
+            <p style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:rgba(100,116,139,0.7);font-weight:600;margin-bottom:0.25rem;">{h.label}</p>
+            <p style="font-size:0.95rem;font-weight:700;color:white;">{h.value}</p>
+          </div>
+        ))}
+
+        <!-- Quote card -->
+        <div class="glass-card" style="padding:1.5rem;grid-column:1/-1;border-color:rgba(56,189,248,0.2);">
+          <div style="display:flex;gap:0.75rem;align-items:flex-start;">
+            <div style="color:#38bdf8;font-size:2rem;line-height:1;font-family:Georgia,serif;margin-top:-0.25rem;">&ldquo;</div>
+            <p style="color:rgba(148,163,184,0.85);font-style:italic;font-size:0.9rem;line-height:1.7;">
+              Automation is the key to reliability. If you're doing something manually more than twice, it's time to script it.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @media (max-width: 768px) {
+    .about-grid {
+      grid-template-columns: 1fr !important;
+      gap: 2rem !important;
+    }
+  }
+</style>

@@ -1,0 +1,122 @@
+---
+const navLinks = [
+  { href: '#about', label: 'About' },
+  { href: '#skills', label: 'Skills' },
+  { href: '#projects', label: 'Projects' },
+  // { href: '#blog', label: 'Blog' },
+  // { href: '#youtube', label: 'Videos' },
+  { href: '#contact', label: 'Contact' },
+];
+---
+
+<header id="navbar" style="position:fixed;top:0;left:0;right:0;z-index:50;transition:all 0.3s ease;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;">
+    <nav style="display:flex;align-items:center;justify-content:space-between;height:70px;">
+      <!-- Logo -->
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:0.5rem;">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#38bdf8,#818cf8);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#0a0e1a;font-size:1rem;">BP</div>
+        <span style="font-weight:700;font-size:1rem;color:white;letter-spacing:-0.02em;">Banu Priya</span>
+      </a>
+
+      <!-- Desktop Nav -->
+      <ul id="nav-links" style="display:flex;gap:0.25rem;list-style:none;margin:0;padding:0;">
+        {navLinks.map(link => (
+          <li>
+            <a
+              href={link.href}
+              style="padding:0.5rem 0.85rem;border-radius:6px;font-size:0.875rem;font-weight:500;color:rgba(148,163,184,1);text-decoration:none;transition:all 0.2s ease;display:block;"
+              class="nav-link"
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <!-- Right side CTA -->
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <a
+          href="/Banu_DevOps.pdf"
+          download
+          class="btn-primary"
+          style="padding:0.5rem 1.25rem;font-size:0.82rem;"
+          aria-label="Download Resume"
+        >
+          Resume
+        </a>
+
+        <!-- Mobile hamburger -->
+        <button
+          id="mobile-menu-btn"
+          aria-label="Open menu"
+          style="display:none;background:none;border:1px solid rgba(30,45,74,0.8);border-radius:6px;padding:0.4rem;cursor:pointer;color:white;"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div
+    id="mobile-menu"
+    style="display:none;border-top:1px solid rgba(30,45,74,0.5);background:rgba(10,14,26,0.98);backdrop-filter:blur(20px);padding:1rem 1.5rem;"
+  >
+    {navLinks.map(link => (
+      <a
+        href={link.href}
+        style="display:block;padding:0.75rem 0;color:rgba(148,163,184,1);text-decoration:none;font-size:1rem;border-bottom:1px solid rgba(30,45,74,0.3);"
+        class="mobile-nav-link"
+      >
+        {link.label}
+      </a>
+    ))}
+  </div>
+</header>
+
+<style>
+  .nav-link:hover {
+    color: white !important;
+    background: rgba(30, 45, 74, 0.5) !important;
+  }
+  #navbar.scrolled {
+    background: rgba(10, 14, 26, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(30, 45, 74, 0.5);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  }
+  @media (max-width: 768px) {
+    #nav-links { display: none !important; }
+    #mobile-menu-btn { display: flex !important; }
+  }
+</style>
+
+<script>
+  const navbar = document.getElementById('navbar');
+  const mobileBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+      navbar?.classList.add('scrolled');
+    } else {
+      navbar?.classList.remove('scrolled');
+    }
+  });
+
+  mobileBtn?.addEventListener('click', () => {
+    const isOpen = mobileMenu?.style.display !== 'none';
+    if (mobileMenu) mobileMenu.style.display = isOpen ? 'none' : 'block';
+  });
+
+  document.querySelectorAll('.mobile-nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (mobileMenu) mobileMenu.style.display = 'none';
+    });
+  });
+</script>
